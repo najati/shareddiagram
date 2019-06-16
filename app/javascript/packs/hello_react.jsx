@@ -25,8 +25,12 @@ class SharedGraphApp extends React.Component {
     };
 
     const updateGraph = async () => {
-      const graphHtml = await this.props.renderGraph(this.state.graphCode);
-      this.renderGraph(graphHtml);
+      try {
+        const graphHtml = await this.props.renderGraph(this.state.graphCode);
+        this.renderGraph(graphHtml);
+      } catch (err) {
+        console.log("derp", err);
+      }
     };
     this.updateGraph = _.debounce(updateGraph, 300);
 
