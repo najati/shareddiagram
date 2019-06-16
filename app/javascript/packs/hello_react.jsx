@@ -13,6 +13,8 @@ import {ready} from './ready'
 
 import AceEditor from 'react-ace';
 import 'brace/mode/dot';
+import {AutoSizer} from 'react-virtualized';
+import {UncontrolledReactSVGPanZoom} from 'react-svg-pan-zoom';
 
 import {loremGraphum} from './lorem_graphum';
 
@@ -21,8 +23,11 @@ class SharedGraphApp extends React.Component {
     super(props);
 
     this.state = {
-      graphCode: props.graphCode
+      graphCode: props.graphCode,
+      graphElement: <svg width={256} height={256}></svg>
     };
+
+    this.svgView = React.createRef();
 
     const updateGraph = async () => {
       try {
@@ -38,24 +43,62 @@ class SharedGraphApp extends React.Component {
   }
 
   render() {
-    return <Split id="panes" sizes={[25, 75]}>
+    return <Split id="panes" sizes={[25, 75]} onDragEnd={this.splitMoved}>
       <div className="split">
-        <AceEditor
-          mode="dot"
-          onChange={this.graphCodeChanged.bind(this)}
-          name="editor"
-          editorProps={{$blockScrolling: true}}
-          value={this.state.graphCode}
-        />
+        <div id="controls">
+          <button>Fart</button>
+        </div>
+
+        <AutoSizer>
+          {(({width, height}) => width === 0 || height === 0 ? null : (
+            <AceEditor
+              mode="dot"
+              onChange={this.graphCodeChanged.bind(this)}
+              name="editor"
+              editorProps={{$blockScrolling: true}}
+              value={this.state.graphCode}
+              width={width}
+              height={height - 40}
+            />
+          ))}
+        </AutoSizer>
       </div>
       <div className="split graph">
-        {this.state.graphElement}
+        <AutoSizer>
+          {(({width, height}) => width === 0 || height === 0 ? null : (
+            <UncontrolledReactSVGPanZoom
+              width={width}
+              height={height}
+              background="white"
+              tool="pan"
+              miniatureProps={{position: "none"}}
+              toolbarProps={{position: "none"}}
+              ref={this.svgView}>
+              {this.state.graphElement}
+            </UncontrolledReactSVGPanZoom>
+          ))}
+        </AutoSizer>
       </div>
     </Split>
   }
 
+  splitMoved() {
+    window.dispatchEvent(new Event('resize'));
+  }
+
   renderGraph(graphHtml) {
-    this.setState({graphElement: parse(graphHtml)});
+    // TODO fix
+    // this hack removes the pt from the svg width/height attrs
+    // which is needed by svg pan zoom thing
+    graphHtml = graphHtml.replace("pt", "");
+    graphHtml = graphHtml.replace("pt", "");
+    const graphElement = parse(graphHtml).find(e => React.isValidElement(e) && e.type === 'svg');
+
+    if (graphElement) {
+      this.setState({graphElement: graphElement});
+    }
+
+    setTimeout(() => this.svgView.current.fitToViewer("center", "center"), 500);
   }
 
   graphCodeChanged(graphCode) {
